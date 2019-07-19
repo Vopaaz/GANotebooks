@@ -1,14 +1,18 @@
 
 ## Keras implementation of https://phillipi.github.io/pix2pix
 
+设置后端和有关环境变量，可以跳过，使用 tensorflow 和默认设置
 
 ```python
 import os
 os.environ['KERAS_BACKEND']='tensorflow' # can choose theano, tensorflow, cntk
 os.environ['THEANO_FLAGS']='floatX=float32,device=cuda,optimizer=fast_run,dnn.library_path=/usr/lib'
-#os.environ['THEANO_FLAGS']='floatX=float32,device=cuda,optimizer=fast_compile,dnn.library_path=/usr/lib'
+# os.environ['THEANO_FLAGS']='floatX=float32,device=cuda,optimizer=fast_compile,dnn.library_path=/usr/lib'
 ```
 
+设置图片处理中 `channels_first` or `channels_last` 属性，由于使用 tf 后端，有关之处可以直接使用 `channels_last`
+
+> `channel_axis` 目前用处不明
 
 ```python
 import keras.backend as K
@@ -32,6 +36,9 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras.activations import relu
 from keras.initializers import RandomNormal
 ```
+
+> `__conv_init` 函数的使用是什么意思？尤其不知道 `RadomNormal(0, 0.02)` 之后进一步 call 了一个 `(a)`, 以及 `conv_weight` 这两个属性，keras documentation 里都没找到
+
 
 
 ```python
