@@ -39,7 +39,7 @@ from keras.initializers import RandomNormal
 
 > `__conv_init` 函数的使用是什么意思？尤其不知道 `RadomNormal(0, 0.02)` 之后进一步 call 了一个 `(a)`, 以及 `conv_weight` 这两个属性，keras documentation 里都没找到
 
-
+`RandomNormal` 是 keras 官方的 `Initializer`, 见[文档](https://keras.io/initializers/), 第一个参数是 `mean`, 第二个参数是 `std_dev`，用于对 keras 层的初始权重进行随机初始化
 
 ```python
 # Weights initializations
@@ -54,6 +54,7 @@ gamma_init = RandomNormal(1., 0.02) # for batch normalization
 
 ```
 
+Theano 有关的设置，用 tf 的话不用管
 
 ```python
 # HACK speed up theano
@@ -74,6 +75,13 @@ if K._BACKEND == 'theano':
     theano_backend._preprocess_conv2d_kernel = _preprocess_conv2d_kernel
 ```
 
+`conv2d`: 用默认的 `RandomNormal(0, 0.02)`, 也即上面定义的 `conv_init` 创建一个卷积层
+
+> 这里的 `f` 应当包含 filters 和 kernel_size 两个参数，具体形式看后面代码怎么用的
+
+`batchnorm`: 一个神秘莫测的高深技术，具体参考[文档](https://keras.io/layers/normalization/)和[大佬写的博客](https://www.cnblogs.com/guoyaohua/p/8724433.html)
+
+注意这里用到了 `channal_axis` 这个变量，在前面被初始化为了 `-1` （使用 tf）
 
 ```python
 # Basic discriminator
@@ -82,6 +90,11 @@ def conv2d(f, *a, **k):
 def batchnorm():
     return BatchNormalization(momentum=0.9, axis=channel_axis, epsilon=1.01e-5,
                                    gamma_initializer = gamma_init)
+```
+
+Discriminator 类
+
+```python
 def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
     """DCGAN_D(nc, ndf, max_layers=3)
        nc: channels
