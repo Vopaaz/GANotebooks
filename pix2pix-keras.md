@@ -232,13 +232,27 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
 - `s`: 图像的大小
     - 首次调用传入了 `isize`
     - 递归调用传入了上一级递归的此参数的一半（取整）
-- *`nf_in`:*
+- `nf_in`: *某个场景中* filters 的数量 
     - 首次调用传入了 `nc_in`
-    - 递归调用传入了 `nf_next = min(nf_in*2, max_nf)`, 其中 `nf_in` 是上一级的本参数，`max_nf` 是外层 `UNET_G` 第一行定义的 `max_nf = 8*ngf`
+    - 递归调用传入了 `nf_next = min(nf_in*2, max_nf)`
 - `use_batchnorm`: 是否使用神秘的 `BatchNormalization`, 说明前面有提到过
-- *`nf_out`:*
+- `nf_out`: 输出时使用的 filters 的数量
     - 如果传入参数时不提供默认值，会被设置成和 `nf_in` 一样
-    - 调用
+    - 被调用的地方只有一个：`Conv2DTranspose` 的第一个参数
+- `nf_next`: *某个场景中* filters 的数量 
+    - 如果传入参数时不提供默认值，会被设置成 `nf_next = min(nf_in*2, max_nf)`, 其中 `nf_in` 是上一级的本参数，`max_nf` 是外层 `UNET_G` 第一行定义的 `max_nf = 8*ngf`
+
+
+涉及到的 keras Layers 的说明：
+
+- `Conv2DTranspose`: 即“反卷积”或“转置卷积”，是卷积的逆向过程（但是当然无法恢复所有信息），是 Generator 产生图像的关键
+
+> 需要进一步搜集有关资料便于理解
+
+- ``
+
+
+
 
 ```python
     def block(x, s, nf_in, use_batchnorm=True, nf_out=None, nf_next=None):
