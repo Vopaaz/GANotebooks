@@ -1,6 +1,8 @@
 
 ## Keras implementation of https://phillipi.github.io/pix2pix
 
+---
+
 设置后端和有关环境变量，可以跳过，使用 tensorflow 和默认设置
 
 ```python
@@ -9,6 +11,8 @@ os.environ['KERAS_BACKEND']='tensorflow' # can choose theano, tensorflow, cntk
 os.environ['THEANO_FLAGS']='floatX=float32,device=cuda,optimizer=fast_run,dnn.library_path=/usr/lib'
 # os.environ['THEANO_FLAGS']='floatX=float32,device=cuda,optimizer=fast_compile,dnn.library_path=/usr/lib'
 ```
+
+---
 
 设置图片处理中 `channels_first` or `channels_last` 属性，由于使用 tf 后端，有关之处可以直接使用 `channels_last`
 
@@ -27,6 +31,7 @@ else:
     channel_first = False
 ```
 
+---
 
 ```python
 from keras.models import Sequential, Model
@@ -37,6 +42,8 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras.activations import relu
 from keras.initializers import RandomNormal
 ```
+
+---
 
 > `__conv_init` 函数的使用是什么意思？尤其不知道 `RadomNormal(0, 0.02)` 之后进一步 call 了一个 `(a)`, 以及 `conv_weight` 这两个属性，keras documentation 里都没找到
 
@@ -52,8 +59,9 @@ def __conv_init(a):
     return k
 conv_init = RandomNormal(0, 0.02)
 gamma_init = RandomNormal(1., 0.02) # for batch normalization
-
 ```
+
+---
 
 Theano 有关的设置，用 tf 的话不用管
 
@@ -76,6 +84,8 @@ if K._BACKEND == 'theano':
     theano_backend._preprocess_conv2d_kernel = _preprocess_conv2d_kernel
 ```
 
+---
+
 `conv2d`: 用默认的 `RandomNormal(0, 0.02)`, 也即上面定义的 `conv_init` 创建一个卷积层。
 这里的 `f` 指的是 `filters` 数量，另一个 `Conv2D` 中必须的参数 `kernel_size` 需要在 `**k` 参数中指定
 
@@ -92,7 +102,9 @@ def batchnorm():
                                    gamma_initializer = gamma_init)
 ```
 
-Discriminator 类
+---
+
+### Discriminator 类
 
 [CNN 基础概念理解](https://zhuanlan.zhihu.com/p/42559190)
 
@@ -116,6 +128,8 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
         input_a, input_b = Input(shape=(None, None, nc_in)), Input(shape=(None, None, nc_out))
 ```
 
+---
+
 仍然记得使用 tf 时 `channel_axis` 设置成了 `-1`
 
 > 两张图片的 Channel 维度被连接了起来，似乎意思指的就是，连接后的图片大小和原来一张的大小一样，但是有 RGB-RGB 这样的六个通道，视觉感受上看类似两张图片用一半透明度堆在了一起的感觉
@@ -123,6 +137,8 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
 ```python
     _ = Concatenate(axis=channel_axis)([input_a, input_b])
 ```
+
+---
 
 使用上面预定义了初始化方法的 `conv2d` 函数来堆叠 `Conv2D` 层，参数含义如下：
 - `ndf` 是 filters 的数量
@@ -136,6 +152,8 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
     _ = conv2d(ndf, kernel_size=4, strides=2, padding="same", name = 'First') (_)
     _ = LeakyReLU(alpha=0.2)(_)
 ```
+
+---
 
 这一部分是堆叠隐藏层。根据前面 `max_layers` 的说明是，它指定隐藏层的最大层数，因此这里就通过循环 `range(1, max_layers)` 来控制循环次数
 
@@ -162,6 +180,7 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
     return Model(inputs=[input_a, input_b], outputs=_)
 ```
 
+---
 
 ```python
 def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
