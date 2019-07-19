@@ -146,7 +146,7 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
 - `strides` 步长
 - `padding` 填白的方法，这里使用了 `same` 让卷积之后图片的大小不变，参考 [CNN 基础概念理解](https://zhuanlan.zhihu.com/p/42559190)
 
-激活函数使用 `LeakyReLU`
+激活函数使用 `LeakyReLU`, 参考[官方文档](https://keras.io/layers/advanced-activations/)
 
 ```python
     _ = conv2d(ndf, kernel_size=4, strides=2, padding="same", name = 'First') (_)
@@ -157,6 +157,11 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
 
 这一部分是堆叠隐藏层。根据前面 `max_layers` 的说明是，它指定隐藏层的最大层数，因此这里就通过循环 `range(1, max_layers)` 来控制循环次数
 
+两个遇到的新操作：
+- `use_bias=False`, 这个参数指的是是否创建一个 bias vector 并且直接加到输出上，默认为 True, 因此似乎在第一层中使用，后面所有层都不使用
+- `batchnorm()(_, training=1)` 是应用前面定义的 `BatchNormalization` 层，根据 Functional API 的说明，`batchnorm()` 的参数中，`_` 是前面那一层，但是
+
+> `training=1` 参数是什么意思 没有找到
 
 ```python
     for layer in range(1, max_layers):
@@ -166,7 +171,15 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
                         ) (_)
         _ = batchnorm()(_, training=1)
         _ = LeakyReLU(alpha=0.2)(_)
+```
 
+---
+
+`out_feat` 参数就是 filters 的个数，通过第一层的 filters 和最大深度算出来
+
+`ZeroPadding2D` 层在这里把之前输出的图片上下左右各填充了一个空白像素，之后再送到最后一个 `Conv2D` 层
+
+```python
     out_feat = ndf*min(2**max_layers, 8)
     _ = ZeroPadding2D(1)(_)
     _ = conv2d(out_feat, kernel_size=4,  use_bias=False, name = 'pyramid_last') (_)
