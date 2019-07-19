@@ -111,7 +111,8 @@ def batchnorm():
 > 设定输入层这里有一些问题：
 > 1. shape 中包含 `None`, 官方文档中没有指出 Input 层可以为 `None` 的条件，根据[这个 issue ](https://github.com/keras-team/keras/issues/2054) 好像只有 Theano 的 RNN 可以这么做，具体等实操
 > 2. `input_a` 和 `input_b` 分别来自哪里？看后面代码应该能解决
-> 3. `nc_in` 和 `nc_out` 似乎指代的都是颜色的 Channel, 那么应该都是一样的，例如 `3`?
+
+`nc_in` 和 `nc_out` 似乎指代的都是颜色的 Channel, 那么应该都是一样的，例如 `3`. 看后面 Generator 就直接在这边将两个同名参数的默认值设置为了 `3`
 
 ```python
 def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
@@ -201,10 +202,47 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
 
 ### Generator
 
+> 推测的参数说明：
+
+- `isize`: 图片的大小
+- `nc_in` / `nc_out`: 图片的颜色通道，一般都还是用 `3`
+- `ngf`: 第一层中 filters 的数量，对应 Discriminator 中的 `ndf`, `g` 和 `d` 分别指代 generator 和 discriminator
+- `fixed_input_size`: 输入图像的大小是否是相同的
+
+> `max_nf` 的含义是什么？推测是最大的 filters 数量，要看后面代码
+
 ```python
 def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
     max_nf = 8*ngf
+```
+
+---
+
+`block` 是一个内部函数，它通过对自己递归来产生 Generator 中除了输入层和最后一个激活函数层之外的所有隐藏层
+
+被调用：
+- `block` 内部有一个递归调用
+- `Input` 层后面紧跟了一个 `block` 函数，返回值后面连接了 `tanh` 激活函数层
+
+> 推测的参数说明：*斜体表示暂时没懂什么作用*
+
+- `x`: `block` 产生的层连接着的上一个层
+    - 首次调用传入了 `Input` 层
+    - 递归调用传入了 `Conv2D` 后接的 `LeakyReLU` 层
+- `s`: 图像的大小
+    - 首次调用传入了 `isize`
+    - 递归调用传入了上一级递归的此参数的一半（取整）
+- *`nf_in`:*
+    - 首次调用传入了 `nc_in`
+    - 递归调用传入了 `nf_next = min(nf_in*2, max_nf)`, 其中 `nf_in` 是上一级的本参数，`max_nf` 是外层 `UNET_G` 第一行定义的 `max_nf = 8*ngf`
+- `use_batchnorm`: 是否使用神秘的 `BatchNormalization`, 说明前面有提到过
+- *`nf_out`:*
+    - 如果传入参数时不提供默认值，会被设置成和 `nf_in` 一样
+    - 调用
+
+```python
     def block(x, s, nf_in, use_batchnorm=True, nf_out=None, nf_next=None):
+        # 淦啊用什么递归自己也搞不清楚要 print 调试了吧【】
         # print("block",x,s,nf_in, use_batchnorm, nf_out, nf_next)
         assert s>=2 and s%2==0
         if nf_next is None:
@@ -229,7 +267,13 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
         if s <=8:
             x = Dropout(0.5)(x, training=1)
         return x
+```
 
+---
+
+`block` 函数定义完成之后对其的调用，具体说明主要在上一段
+
+```python
     s = isize if fixed_input_size else None
     if channel_first:
         _ = inputs = Input(shape=(nc_in, s, s))
@@ -240,6 +284,7 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
     return Model(inputs=inputs, outputs=[_])
 ```
 
+---
 
 ```python
 nc_in = 3
