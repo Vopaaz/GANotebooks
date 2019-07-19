@@ -12,7 +12,8 @@ os.environ['THEANO_FLAGS']='floatX=float32,device=cuda,optimizer=fast_run,dnn.li
 
 设置图片处理中 `channels_first` or `channels_last` 属性，由于使用 tf 后端，有关之处可以直接使用 `channels_last`
 
-> `channel_axis` 目前用处不明
+`channel_axis` 在后面 `BatchNormalization` 以及 `Concatenate` 层的 `axis` 参数中被用到，分别指定的是在哪个维度上连接或进行标准化。
+这里猜测 `axis=-1` 的含义和 Python 切片中 `-1` 代表最后一个元素相同，即操作在最后一个维度进行
 
 ```python
 import keras.backend as K
@@ -75,9 +76,8 @@ if K._BACKEND == 'theano':
     theano_backend._preprocess_conv2d_kernel = _preprocess_conv2d_kernel
 ```
 
-`conv2d`: 用默认的 `RandomNormal(0, 0.02)`, 也即上面定义的 `conv_init` 创建一个卷积层
-
-> 这里的 `f` 应当包含 filters 和 kernel_size 两个参数，具体形式看后面代码怎么用的
+`conv2d`: 用默认的 `RandomNormal(0, 0.02)`, 也即上面定义的 `conv_init` 创建一个卷积层。
+这里的 `f` 指的是 `filters` 数量，另一个 `Conv2D` 中必须的参数 `kernel_size` 需要在 `**k` 参数中指定
 
 `batchnorm`: 一个神秘莫测的高深技术，具体参考[文档](https://keras.io/layers/normalization/)和[大佬写的博客](https://www.cnblogs.com/guoyaohua/p/8724433.html)
 
@@ -94,6 +94,13 @@ def batchnorm():
 
 Discriminator 类
 
+[CNN 基础概念理解](https://zhuanlan.zhihu.com/p/42559190)
+
+> 设定输入层这里有一些问题：
+> 1. shape 中包含 `None`, 官方文档中没有指出 Input 层可以为 `None` 的条件，根据[这个 issue ](https://github.com/keras-team/keras/issues/2054) 好像只有 Theano 的 RNN 可以这么做，具体等实操
+> 2. `input_a` 和 `input_b` 分别来自哪里？看后面代码应该能解决
+> 3. `nc_in` 和 `nc_out` 似乎指代的都是颜色的 Channel, 那么应该都是一样的，例如 `3`?
+
 ```python
 def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
     """DCGAN_D(nc, ndf, max_layers=3)
@@ -101,14 +108,39 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
        ndf: filters of the first layer
        max_layers: max hidden layers
     """
+    
+    # 设定输入层
     if channel_first:
         input_a, input_b =  Input(shape=(nc_in, None, None)), Input(shape=(nc_out, None, None))
     else:
         input_a, input_b = Input(shape=(None, None, nc_in)), Input(shape=(None, None, nc_out))
+```
+
+仍然记得使用 tf 时 `channel_axis` 设置成了 `-1`
+
+> 两张图片的 Channel 维度被连接了起来，似乎意思指的就是，连接后的图片大小和原来一张的大小一样，但是有 RGB-RGB 这样的六个通道，视觉感受上看类似两张图片用一半透明度堆在了一起的感觉
+
+```python
     _ = Concatenate(axis=channel_axis)([input_a, input_b])
+```
+
+使用上面预定义了初始化方法的 `conv2d` 函数来堆叠 `Conv2D` 层，参数含义如下：
+- `ndf` 是 filters 的数量
+- `kernel_size` 为 int 而不是 tuple 时，表示长宽一样
+- `strides` 步长
+- `padding` 填白的方法，这里使用了 `same` 让卷积之后图片的大小不变，参考 [CNN 基础概念理解](https://zhuanlan.zhihu.com/p/42559190)
+
+激活函数使用 `LeakyReLU`
+
+```python
     _ = conv2d(ndf, kernel_size=4, strides=2, padding="same", name = 'First') (_)
     _ = LeakyReLU(alpha=0.2)(_)
+```
 
+这一部分是堆叠隐藏层。根据前面 `max_layers` 的说明是，它指定隐藏层的最大层数，因此这里就通过循环 `range(1, max_layers)` 来控制循环次数
+
+
+```python
     for layer in range(1, max_layers):
         out_feat = ndf * min(2**layer, 8)
         _ = conv2d(out_feat, kernel_size=4, strides=2, padding="same",
