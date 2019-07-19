@@ -104,7 +104,7 @@ def batchnorm():
 
 ---
 
-### Discriminator 类
+### Discriminator
 
 [CNN 基础概念理解](https://zhuanlan.zhihu.com/p/42559190)
 
@@ -177,7 +177,11 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
 
 `out_feat` 参数就是 filters 的个数，通过第一层的 filters 和最大深度算出来
 
-`ZeroPadding2D` 层在这里把之前输出的图片上下左右各填充了一个空白像素，之后再送到最后一个 `Conv2D` 层
+`ZeroPadding2D` 层的作用是把之前输出的图片上下左右各填充了一个空白像素，之后再送给下一个 `Conv2D` 层
+
+在最终层中，激活函数用的是 `sigmoid`, 因为 Discriminator 最终做的是一个分类任务
+
+> 这里 `name = 'final'.format(out_feat, 1)`, 不知道什么意思，字符串 'final' 中根本就没有 `{}` 符号来填充内容
 
 ```python
     out_feat = ndf*min(2**max_layers, 8)
@@ -194,6 +198,8 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
 ```
 
 ---
+
+### Generator
 
 ```python
 def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
