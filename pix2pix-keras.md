@@ -298,6 +298,13 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
 
 ---
 
+以上部分完成了两个模型的定义
+
+以下部分应该是编译和进行训练的步骤。
+
+> $\lambda$ 和 `loadSize` 两个参数的含义不明
+> 【为什么在 Python 代码里会用希腊字母形式的 $\lambda$ 作为变量名啊？？
+
 ```python
 nc_in = 3
 nc_out = 3
@@ -316,7 +323,6 @@ lrG = 2e-4
 ```python
 netD = BASIC_D(nc_in, nc_out, ndf)
 netD.summary()
-
 ```
 
 
@@ -328,7 +334,6 @@ from keras.utils.vis_utils import model_to_dot
 netG = UNET_G(imageSize, nc_in, nc_out, ngf)
 #SVG(model_to_dot(netG, show_shapes=True).create(prog='dot', format='svg'))
 netG.summary()
-
 ```
 
 
