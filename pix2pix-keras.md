@@ -121,7 +121,7 @@ def BASIC_D(nc_in, nc_out, ndf, max_layers=3):
        ndf: filters of the first layer
        max_layers: max hidden layers
     """
-    
+
     # 设定输入层
     if channel_first:
         input_a, input_b =  Input(shape=(nc_in, None, None)), Input(shape=(nc_out, None, None))
@@ -224,22 +224,22 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
 - `block` 内部有一个递归调用
 - `Input` 层后面紧跟了一个 `block` 函数，返回值后面连接了 `tanh` 激活函数层
 
-> 推测的参数说明：*斜体表示暂时没懂什么作用*
+推测的参数说明：
 
 - `x`: `block` 产生的层连接着的上一个层
     - 首次调用传入了 `Input` 层
     - 递归调用传入了 `Conv2D` 后接的 `LeakyReLU` 层
-- `s`: 图像的大小
+- `s`: 一个控制堆叠层数的参数，让层数为 $\log_2 (\text{isize})$【或者`+1/-1`什么的，但是总体上说是这个数量级】
     - 首次调用传入了 `isize`
     - 递归调用传入了上一级递归的此参数的一半（取整）
-- `nf_in`: *某个场景中* filters 的数量 
-    - 首次调用传入了 `nc_in`
+- `nf_in`: `Conv2DTranspose` 所使用的 filters 的数量
+    - 首次调用传入了 `nc_in`. 通过之前的基概知道，卷积层使用的 filters 的数量等价于其输出的图像的通道数，`Conv2DTranspose` 的作用是还原图像，所以输出的通道数要和输入图像的通道数相同
     - 递归调用传入了 `nf_next = min(nf_in*2, max_nf)`
 - `use_batchnorm`: 是否使用神秘的 `BatchNormalization`, 说明前面有提到过
 - `nf_out`: 输出时使用的 filters 的数量
     - 如果传入参数时不提供默认值，会被设置成和 `nf_in` 一样
     - 被调用的地方只有一个：`Conv2DTranspose` 的第一个参数
-- `nf_next`: *某个场景中* filters 的数量 
+- `nf_next`: 传入 `block` 函数的层下一层连接的 `conv2d` 层所使用的 filters 的数量
     - 如果传入参数时不提供默认值，会被设置成 `nf_next = min(nf_in*2, max_nf)`, 其中 `nf_in` 是上一级的本参数，`max_nf` 是外层 `UNET_G` 第一行定义的 `max_nf = 8*ngf`
 
 
@@ -249,14 +249,12 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
 
 > 需要进一步搜集有关资料便于理解
 
-- ``
+- `Cropping2D`: 和之前的 `ZeroPadding2D` 作用相反，裁掉图片上下左右四个边缘
 
-
-
+调用一次 `block` 函数，会堆叠一个 `Conv2D` 层和一个 `Conv2DTranspose` 层（以及其他的 cropping, padding, 激活函数层等等），以起到 Generator 的作用。并且通过递归，堆叠多层。
 
 ```python
     def block(x, s, nf_in, use_batchnorm=True, nf_out=None, nf_next=None):
-        # 淦啊用什么递归自己也搞不清楚要 print 调试了吧【】
         # print("block",x,s,nf_in, use_batchnorm, nf_out, nf_next)
         assert s>=2 and s%2==0
         if nf_next is None:
