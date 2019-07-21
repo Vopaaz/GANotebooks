@@ -352,30 +352,21 @@ from keras.optimizers import RMSprop, SGD, Adam
 
 ---
 
+> 这里整个一段都不是很确定... 就不全都打上引用了
+
 运行 Notebook 后打印这里的 `real_A = netG.input` 和 `fake_B = netG.output`，分别得到了一个 `tf.Tensor`, 即 TensorFlow 张量。有关用法在官方文档中没有发现。
 
-> tf 学的不是很深入，但是根据印象来说这个张量应该是动态的而不是静态的，可以理解为图里的一个节点。
+tf 学的不是很深入，但是根据印象来说这个张量应该是动态的而不是静态的，可以理解为图里的一个节点。
 
-`K` 是 `keras.backend`, `K.function()` 在官方文档中的说明是（直接复制黏贴了，链接页面过长也不好查找，并且没有 anchor ）：
+`K` 是 `keras.backend`, `K.function()` 在[官方文档中的说明](https://keras.io/backend/#function) 有点令人迷茫。
 
-> 具体作用和如何使用可以参考[这个 StackOverflow 回答](https://stackoverflow.com/questions/48142181/whats-the-purpose-of-keras-backend-function)以及[这些例子](https://www.programcreek.com/python/example/93732/keras.backend.function)，并且结合后面理解。
+具体作用和如何使用可以参考[这个 StackOverflow 回答](https://stackoverflow.com/questions/48142181/whats-the-purpose-of-keras-backend-function)。
 
-```text
-keras.backend.function(inputs, outputs, updates=None)
-Instantiates a Keras function.
+在这个例子中，我的理解是 `K.function([real_A], [fake_B])` 创造了一个函数 `netG_generate` ，它接受一个参数，这个参数会被放入 `real_A` (也就是 `netG.input`), 并且利用 `netG` 这个 Model 来做 prediction, 并且将 `fake_B` 也就是 `netG.output` 作为函数返回值
 
-Arguments:
-- inputs: List of placeholder tensors.
-- outputs: List of output tensors.
-- updates: List of update ops.
-- **kwargs: Passed to tf.Session.run.
+`real_B` 与 `real_A`, `fake_B` 都是一个张量，应该是 `netD` 这个网络的输入 placeholder. `output_D_real` 和 `output_D_fake` 是 call Discriminator 得来的，运行 notebook 发现这两个也是张量。
 
-Returns:
-- Output values as Numpy arrays.
-
-Raises:
-- ValueError: if invalid kwargs are passed in.
-```
+根据[官方文档](https://keras.io/getting-started/functional-api-guide/#first-example-a-densely-connected-network), **All models are callable, just like layers**. 所以这两个张量分别可以理解为 `netD` 的两个 Input 层分别接入了 `[real_A, real_B]`, `[real_A, fake_B]` 之后形成的两个新模型的最终输出。
 
 ```python
 real_A = netG.input
@@ -387,6 +378,22 @@ output_D_fake = netD([real_A, fake_B])
 ```
 
 ---
+
+定义损失函数，`loss_fn` 应该是构造出来的效果最好的神秘损失函数【x
+
+下面的三个 loss function 用到了两个 keras 的函数：
+
+- `ones_like` [官方文档](https://keras.io/backend/#ones_like). Instantiates an all-ones variable of the same shape as another tensor.
+- `zeros_like` [官方文档](https://keras.io/backend/#zeros_like). Instantiates an all-zeros variable of the same shape as another tensor.
+
+对三个 loss function 的理解如下：
+
+- `loss_D_real` 是 Discriminator 对真实的一对图片的分类，目标应当是 `1`
+- `loss_D_fake` 是 Discriminator 对 Generator 伪造图片的分类，目标应当是 `0`
+- `loss_G_fake` 的目标是尽量让 Discriminator 对 fake 图片的判断结果是 `1`
+
+`loss_L1` 是添加 L1 正则化
+
 
 ```python
 #loss_fn = lambda output, target : K.mean(K.binary_crossentropy(output, target))
@@ -400,6 +407,7 @@ loss_G_fake = loss_fn(output_D_fake, K.ones_like(output_D_fake))
 loss_L1 = K.mean(K.abs(fake_B-real_B))
 ```
 
+---
 
 ```python
 loss_D = loss_D_real +loss_D_fake
@@ -412,10 +420,9 @@ netD_train = K.function([real_A, real_B],[loss_D/2], training_updates)
 loss_G = loss_G_fake   + 100 * loss_L1
 training_updates = Adam(lr=lrG, beta_1=0.5).get_updates(netG.trainable_weights,[], loss_G)
 netG_train = K.function([real_A, real_B], [loss_G_fake, loss_L1], training_updates)
-
-
 ```
 
+---
 
 ```python
 from PIL import Image
