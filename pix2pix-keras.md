@@ -319,12 +319,20 @@ lrD = 2e-4
 lrG = 2e-4
 ```
 
+---
+
+构建 Discriminator 模型
 
 ```python
 netD = BASIC_D(nc_in, nc_out, ndf)
 netD.summary()
 ```
 
+---
+
+构建 Generator 模型
+
+`SVG(model_to_dot....)` 这句运行不了，需要安装 `Graphviz`, 查了一下过程比较繁琐
 
 ```python
 from IPython.display import SVG
@@ -336,11 +344,38 @@ netG = UNET_G(imageSize, nc_in, nc_out, ngf)
 netG.summary()
 ```
 
+---
 
 ```python
 from keras.optimizers import RMSprop, SGD, Adam
 ```
 
+---
+
+运行 Notebook 后打印这里的 `real_A = netG.input` 和 `fake_B = netG.output`，分别得到了一个 `tf.Tensor`, 即 TensorFlow 张量。有关用法在官方文档中没有发现。
+
+> tf 学的不是很深入，但是根据印象来说这个张量应该是动态的而不是静态的，可以理解为图里的一个节点。
+
+`K` 是 `keras.backend`, `K.function()` 在官方文档中的说明是（直接复制黏贴了，链接页面过长也不好查找，并且没有 anchor ）：
+
+> 具体作用和如何使用可以参考[这个 StackOverflow 回答](https://stackoverflow.com/questions/48142181/whats-the-purpose-of-keras-backend-function)以及[这些例子](https://www.programcreek.com/python/example/93732/keras.backend.function)，并且结合后面理解。
+
+```text
+keras.backend.function(inputs, outputs, updates=None)
+Instantiates a Keras function.
+
+Arguments:
+- inputs: List of placeholder tensors.
+- outputs: List of output tensors.
+- updates: List of update ops.
+- **kwargs: Passed to tf.Session.run.
+
+Returns:
+- Output values as Numpy arrays.
+
+Raises:
+- ValueError: if invalid kwargs are passed in.
+```
 
 ```python
 real_A = netG.input
@@ -351,6 +386,7 @@ output_D_real = netD([real_A, real_B])
 output_D_fake = netD([real_A, fake_B])
 ```
 
+---
 
 ```python
 #loss_fn = lambda output, target : K.mean(K.binary_crossentropy(output, target))
