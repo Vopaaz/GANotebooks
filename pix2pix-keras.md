@@ -409,6 +409,8 @@ loss_L1 = K.mean(K.abs(fake_B-real_B))
 
 ---
 
+有关 `Adam().get_updates()` 的[资料](https://stackoverflow.com/questions/55058546/how-is-get-updates-of-optimizers-sgd-used-in-keras-during-training)
+
 ```python
 loss_D = loss_D_real +loss_D_fake
 training_updates = Adam(lr=lrD, beta_1=0.5).get_updates(netD.trainable_weights,[],loss_D)
