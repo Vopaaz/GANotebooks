@@ -364,7 +364,7 @@ tf 学的不是很深入，但是根据印象来说这个张量应该是动态�
 
 在这个例子中，我的理解是 `K.function([real_A], [fake_B])` 创造了一个函数 `netG_generate` ，它接受一个参数，这个参数会被放入 `real_A` (也就是 `netG.input`), 并且利用 `netG` 这个 Model 来做 prediction, 并且将 `fake_B` 也就是 `netG.output` 作为函数返回值
 
-`real_B` 与 `real_A`, `fake_B` 都是一个张量，应该是 `netD` 这个网络的输入 placeholder. `output_D_real` 和 `output_D_fake` 是 call Discriminator 得来的，运行 notebook 发现这两个也是张量。
+`real_B`, `real_A` 和 `fake_B` 三者各自是一个张量，应该是 `netD` 这个网络的输入 placeholder. `output_D_real` 和 `output_D_fake` 是 call Discriminator 得来的，运行 notebook 发现这两个也是张量。
 
 根据[官方文档](https://keras.io/getting-started/functional-api-guide/#first-example-a-densely-connected-network), **All models are callable, just like layers**. 所以这两个张量分别可以理解为 `netD` 的两个 Input 层分别接入了 `[real_A, real_B]`, `[real_A, fake_B]` 之后形成的两个新模型的最终输出。
 
@@ -409,7 +409,12 @@ loss_L1 = K.mean(K.abs(fake_B-real_B))
 
 ---
 
-有关 `Adam().get_updates()` 的[资料](https://stackoverflow.com/questions/55058546/how-is-get-updates-of-optimizers-sgd-used-in-keras-during-training)
+> 有关 `Adam().get_updates()`, 几乎找不到相关资料，只能看到[源代码](https://github.com/keras-team/keras/blob/2f55055a9f053b35fa721d3eb75dd07ea5a5f1e3/keras/optimizers.py#L471)中返回的是 `self.updates`, 并且根据[这个回答](https://stackoverflow.com/questions/55058546/how-is-get-updates-of-optimizers-sgd-used-in-keras-during-training)，`get_updates()` defines graph operations that update the gradients. 也就是说函数的返回值是一个代表了权重更新的张量。
+> 但问题在于，源代码中的 `get_updates()` 只接受两个参数（`def get_updates(self, loss, params):`），而这里传入了三个参数，完全迷惑
+
+后面 `K.function` 中第三个参数为 `updates`, 官方文档的解释为 "List of update ops", 在代码中输入了 `training_updates`，参考[这个回答](https://stackoverflow.com/questions/44478607/will-keras-backend-function-with-updates-none-not-update-the-state-of-a-statef), 读下来意思是，如果第三个参数保持为 `None`, 那么就只会通过模型来获得一个输出，而不更新模型中的权重。相对应的，如果输入了参数，就会通过这个 "update ops" 来更新模型内的权重。
+
+搜索发现代码中，正常使用的 keras 模型的 `model.compile`, `model.fit` 等均没有出现，猜测这两行代码的目的就是通过 `get_update` 来 "compile" （设定 updates），并且定义了 `netD_train` 作为一个函数，来完成 fit 的过程。
 
 ```python
 loss_D = loss_D_real +loss_D_fake
@@ -425,6 +430,10 @@ netG_train = K.function([real_A, real_B], [loss_G_fake, loss_L1], training_updat
 ```
 
 ---
+
+有关的包
+- `PIL` 是一个只支持 Python2 的库，在 Python3 中通过 `pip install pillow` 来安装
+- `glob` 是文件批处理包
 
 ```python
 from PIL import Image
