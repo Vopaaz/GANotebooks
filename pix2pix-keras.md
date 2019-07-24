@@ -458,15 +458,18 @@ def load_data(file_pattern):
 - `direction`: 确定最后输出两张图片的顺序
 
 > 这里 `imgA`, `imgB` 分别是什么还不太清楚，整体对这个函数的解析可能需要下载完整的数据集然后看一下效果
-> 根据代码猜测，同一组的两张图片是被横向拼接在一起形成了一张图片，因此 `read_image` 只传入一个路径作为参数。
+
+下载了数据集看了一下，原始图片如下图所示，同一组的两张图片是被横向拼接在一起形成了一张图片，因此 `read_image` 只传入一个路径作为参数。
+
+<div align="center">
+<img src="https://s2.ax1x.com/2019/07/24/eV6Ypd.jpg" width="300">
+</div>
+
+另外，通过详细信息可以看到，图像的分辨率是 512x256, 宽度是 512 像素，高度是 256 像素。这个对应之前全局常数设置的 `imageSize = 256`.
 
 对 `im` 对象的操作可以参考 `PIL.Image.Image` 类的[文档](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image)
 
 `im.resize` 的第一个参数是一个 tuple: `(width, height)`, `loadSize` 在前面被设置为 `286`, 第二个参数是一个 PIL 的 `filters`, 就是在缩放的时候每一个被压缩的像素如何计算，感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters)
-
-对 `arr` 的操作完全懵逼。
-
-有关这个函数的 Notes 先暂时封存一下吧，回去看到了数据集长啥样再写
 
 ```python
 def read_image(fn, direction=0):
