@@ -3,6 +3,8 @@
 
 ---
 
+### 环境配置
+
 设置后端和有关环境变量，可以跳过，使用 tensorflow 和默认设置
 
 ```python
@@ -298,9 +300,9 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
 
 ---
 
-以上部分完成了两个模型的定义
+### 模型实例构建
 
-以下部分应该是编译和进行训练的步骤。
+全局常数定义
 
 > $\lambda$ 和 `loadSize` 两个参数的含义不明
 > 【为什么在 Python 代码里会用希腊字母形式的 $\lambda$ 作为变量名啊？？
@@ -431,9 +433,13 @@ netG_train = K.function([real_A, real_B], [loss_G_fake, loss_L1], training_updat
 
 ---
 
+### 数据读取
+
 有关的包
 - `PIL` 是一个只支持 Python2 的库，在 Python3 中通过 `pip install pillow` 来安装
 - `glob` 是文件批处理包
+
+`glob.glob` 返回符合这个 pattern 的所有文件名
 
 ```python
 from PIL import Image
@@ -443,6 +449,26 @@ from random import randint, shuffle
 
 def load_data(file_pattern):
     return glob.glob(file_pattern)
+```
+
+---
+
+在 `read_image` 函数的参数有两个：
+- `fn`: 要读取图像的文件名
+- `direction`: 确定最后输出两张图片的顺序
+
+> 这里 `imgA`, `imgB` 分别是什么还不太清楚，整体对这个函数的解析可能需要下载完整的数据集然后看一下效果
+> 根据代码猜测，同一组的两张图片是被横向拼接在一起形成了一张图片，因此 `read_image` 只传入一个路径作为参数。
+
+对 `im` 对象的操作可以参考 `PIL.Image.Image` 类的[文档](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image)
+
+`im.resize` 的第一个参数是一个 tuple: `(width, height)`, `loadSize` 在前面被设置为 `286`, 第二个参数是一个 PIL 的 `filters`, 就是在缩放的时候每一个被压缩的像素如何计算，感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters)
+
+对 `arr` 的操作完全懵逼。
+
+有关这个函数的 Notes 先暂时封存一下吧，回去看到了数据集长啥样再写
+
+```python
 def read_image(fn, direction=0):
     im = Image.open(fn)
     im = im.resize( (loadSize*2, loadSize), Image.BILINEAR )
@@ -460,8 +486,16 @@ def read_image(fn, direction=0):
     if direction==0:
         return imgA, imgB
     else:
-        return imgB,imgA
+        return imgB, imgA
+```
 
+---
+
+调用上面的函数读取数据集
+
+注意这里 `trainAB` 和 `valAB` 都是文件夹下所有的图片地址字符串
+
+```python
 data = "edges2shoes"
 data = "facades"
 direction = 0
@@ -469,6 +503,11 @@ trainAB = load_data('pix2pix/{}/train/*.jpg'.format(data))
 valAB = load_data('pix2pix/{}/val/*.jpg'.format(data))
 assert len(trainAB) and len(valAB)
 ```
+
+---
+
+`minibatch` 中有 `yield` 关键字，是一个生成器。
+
 
 
 ```python
@@ -495,6 +534,11 @@ def minibatch(dataAB, batchsize, direction=0):
 
 ```
 
+---
+
+`IPython` 在前面提到过，需要安装 Graphviz, 代码看下来是一个通过 `numpy.ndarray` 反向生成图片并且展示的函数，到实际使用可以看看是否有其他实现方法。
+
+但是中间对这个数组的处理仍然是很重要的。
 
 ```python
 from IPython.display import display
@@ -509,6 +553,7 @@ def showX(X, rows=1):
     display(Image.fromarray(int_X))
 ```
 
+---
 
 ```python
 train_batch = minibatch(trainAB, 6, direction=direction)
