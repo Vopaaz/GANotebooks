@@ -545,7 +545,7 @@ assert len(trainAB) and len(valAB)
 - `batchsize`: 一个 batch 中图片的数量，这个问题其实也可以参考下官方文档对 batch 和 epoch 概念的[说明](https://keras.io/getting-started/faq/#what-does-sample-batch-epoch-mean)
 - `direction`: 与前面 `read_image` 函数的 `direction` 参数对应，确定 AB 两张图片的前后顺序
 
-> `tmpsize` 的操作，以及最后 `yield` 语句结合赋值的语法暂时不懂
+最后 `tmpsize = yield epoch, dataA, dataB` 怀疑是写错了，`tmpsize` 在执行之后会被重置为 `None`, 因为 `yield` 语句没有返回值。
 
 变量 `i` 记录着在当前的 epoch 中，读取了多少张图片。图片将被保存在 `dataA` 和 `dataB` 变量中作为 numpy 数组返回。
 
