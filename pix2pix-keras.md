@@ -471,8 +471,13 @@ def load_data(file_pattern):
 
 > 感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters), 可以尝试使用不同的 Filter 查看区别
 
-通过对 `loadSize` 设置成不同的值，发现这个参数是用于控制不同的“缩放比例”，最终保留的是裁掉边缘的图片。`loadSize` 越大，最终裁掉的边缘越多，剩下的部分越是中心的小块。
+通过对 `loadSize` 设置成不同的值，发现这个参数是用于控制不同的“缩放比例”，最终保留的是裁掉边缘的图片。`loadSize` 越大，最终裁掉的边缘越多，剩下的部分越是中心的小块。猜测是由于数据集中有些图片边缘有不规则的黑色部分，通过这个方法把黑色部分删除。
 
+> 待配图，说明会更清晰
+
+`imgA` 和 `imgB` 被分别赋值为代表图像左边部分和右边部分的 numpy 数组。
+
+`if randint(0,1):` 的部分，目的是随机将图片进行左右翻转，进而使得模型获得更好的泛化性能。
 
 ```python
 def read_image(fn, direction=0):
@@ -497,9 +502,7 @@ def read_image(fn, direction=0):
 
 ---
 
-调用上面的函数读取数据集
-
-注意这里 `trainAB` 和 `valAB` 都是文件夹下所有的图片地址字符串
+调用上面的函数读取数据集，注意这里 `trainAB` 和 `valAB` 都是文件夹下所有的图片地址字符串。
 
 ```python
 data = "edges2shoes"
@@ -514,7 +517,17 @@ assert len(trainAB) and len(valAB)
 
 `minibatch` 中有 `yield` 关键字，是一个生成器。
 
+参数说明：
 
+- `dataAB`: 后面将会传入前面声明的 `trainAB` 和 `valAB` 两个变量
+- `batchsize`: 一个 batch 中图片的数量，这个问题其实也可以参考下官方文档对 batch 和 epoch 概念的[说明](https://keras.io/getting-started/faq/#what-does-sample-batch-epoch-mean)
+- `direction`: 与前面 `read_image` 函数的 `direction` 参数对应，确定 AB 两张图片的前后顺序
+
+> `tmpsize` 的操作，以及最后 `yield` 语句结合赋值的语法暂时不懂
+
+变量 `i` 记录着在当前的 epoch 中，读取了多少张图片。图片将被保存在 `dataA` 和 `dataB` 变量中作为 numpy 数组返回。
+
+`if i+size > length:` 部分的操作是：如果这一 batch 将要读取的部分已经超过了数据集的总数（这一 epoch 中），就标志这个 epoch 完成 (`epoch+=1`), 并且打乱 (`random.shuffle`) 原始数据集，并且将已经读取了的图片的计数 `i` 置为 0.
 
 ```python
 def minibatch(dataAB, batchsize, direction=0):
@@ -542,9 +555,9 @@ def minibatch(dataAB, batchsize, direction=0):
 
 ---
 
-`IPython` 在前面提到过，需要安装 Graphviz, 代码看下来是一个通过 `numpy.ndarray` 反向生成图片并且展示的函数，到实际使用可以看看是否有其他实现方法。
+`showX` 是一个通过 `np.ndarray` 反向生成图片并且展示的函数，需要安装 Graphviz。
 
-但是中间对这个数组的处理仍然是很重要的。
+中间对这个函数的处理基本就是对前面 `read_image` 函数进行了逆向操作。如果有需要再返回回来详细看
 
 ```python
 from IPython.display import display
@@ -561,6 +574,8 @@ def showX(X, rows=1):
 
 ---
 
+这一块应该是调试/看看前面代码效果，最后变量都被 `del` 掉了，不用看
+
 ```python
 train_batch = minibatch(trainAB, 6, direction=direction)
 _, trainA, trainB = next(train_batch)
@@ -568,6 +583,9 @@ showX(trainA)
 showX(trainB)
 del train_batch, trainA, trainB
 ```
+
+---
+
 
 
 ```python
