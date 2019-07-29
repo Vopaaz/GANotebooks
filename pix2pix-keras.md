@@ -463,21 +463,43 @@ def load_data(file_pattern):
 <img src="https://s2.ax1x.com/2019/07/24/eV6Ypd.jpg" width="300">
 </div>
 
-另外，通过详细信息可以看到，图像的分辨率是 512x256, 宽度是 512 像素，高度是 256 像素。这个对应之前全局常数设置的 `imageSize = 256`.
-
-对 `im` 对象的操作可以参考 `PIL.Image.Image` 类的[文档](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image)
+另外，通过详细信息可以看到，数据集中图像的分辨率是 512x256, 宽度是 512 像素，高度是 256 像素。这个可能是对为了对应之前全局常数设置的 `imageSize = 256`, 但实际上这个参数不一定要设置成 256. 它只对应最终输出的 numpy 数组的长和宽，可以大于或小于 256.
 
 `im.resize` 的第一个参数是一个 tuple: `(width, height)`, `loadSize` 在前面被设置为 `286`, 第二个参数是一个 PIL 的 `filters`, 就是在缩放的时候每一个被压缩的像素如何计算
 
-> 感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters), 可以尝试使用不同的 Filter 查看区别
+尝试过了使用不同的 Filter, 发现除了 BOX 似乎会在压缩完图像之后会在图片上添加网格线以外，其他的 Filter 效果都差不多，因此感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters)。
 
-通过对 `loadSize` 设置成不同的值，发现这个参数是用于控制不同的“缩放比例”，最终保留的是裁掉边缘的图片。`loadSize` 越大，最终裁掉的边缘越多，剩下的部分越是中心的小块。猜测是由于数据集中有些图片边缘有不规则的黑色部分，通过这个方法把黑色部分删除。
+通过对 `loadSize` 设置成不同的值，发现这个参数是用于控制不同的“缩放比例”，最终保留的是裁掉边缘的图片。`loadSize` 越大，最终裁掉的边缘越多，剩下的部分越是中心的小块。猜测是由于数据集中有些图片边缘有不规则的黑色部分，需要把黑色部分删除。
 
-> 待配图，说明会更清晰
+具体裁边操作的关键是这四步：
+
+```python
+w1,w2 = (loadSize-imageSize)//2,(loadSize+imageSize)//2
+h1,h2 = w1,w2
+imgA = arr[h1:h2, loadSize+w1:loadSize+w2, :]
+imgB = arr[h1:h2, w1:w2, :]
+```
+
+`arr` 的形状是 `2*loadSize`x`loadSize`, 通过对 `arr` 的切分，就可以裁去图像的边缘。
+
+当 `loadSize` 为 256 时，就是原图。当 `loadSize` 为 286 时，效果如下图（调用后文 `showX` 函数）：
+
+<div align="center">
+<img src="https://s2.ax1x.com/2019/07/29/e86n3R.png" width="300">
+</div>
+
+当 `loadSize` 为 500 时，效果为：
+
+<div align="center">
+<img src="https://s2.ax1x.com/2019/07/29/e86Kjx.png" width="300">
+</div>
 
 `imgA` 和 `imgB` 被分别赋值为代表图像左边部分和右边部分的 numpy 数组。
 
 `if randint(0,1):` 的部分，目的是随机将图片进行左右翻转，进而使得模型获得更好的泛化性能。
+
+另外，对 `im` 对象的操作可以参考 `PIL.Image.Image` 类的[文档](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image)
+
 
 ```python
 def read_image(fn, direction=0):
