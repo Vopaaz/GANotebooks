@@ -457,8 +457,6 @@ def load_data(file_pattern):
 - `fn`: 要读取图像的文件名
 - `direction`: 确定最后输出两张图片的顺序
 
-> 这里 `imgA`, `imgB` 分别是什么还不太清楚，整体对这个函数的解析可能需要下载完整的数据集然后看一下效果
-
 下载了数据集看了一下，原始图片如下图所示，同一组的两张图片是被横向拼接在一起形成了一张图片，因此 `read_image` 只传入一个路径作为参数。
 
 <div align="center">
@@ -469,7 +467,12 @@ def load_data(file_pattern):
 
 对 `im` 对象的操作可以参考 `PIL.Image.Image` 类的[文档](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image)
 
-`im.resize` 的第一个参数是一个 tuple: `(width, height)`, `loadSize` 在前面被设置为 `286`, 第二个参数是一个 PIL 的 `filters`, 就是在缩放的时候每一个被压缩的像素如何计算，感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters)
+`im.resize` 的第一个参数是一个 tuple: `(width, height)`, `loadSize` 在前面被设置为 `286`, 第二个参数是一个 PIL 的 `filters`, 就是在缩放的时候每一个被压缩的像素如何计算
+
+> 感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters), 可以尝试使用不同的 Filter 查看区别
+
+通过对 `loadSize` 设置成不同的值，发现这个参数是用于控制不同的“缩放比例”，最终保留的是裁掉边缘的图片。`loadSize` 越大，最终裁掉的边缘越多，剩下的部分越是中心的小块。
+
 
 ```python
 def read_image(fn, direction=0):
