@@ -1,6 +1,16 @@
 
 ## Keras implementation of https://phillipi.github.io/pix2pix
 
+- [Keras implementation of https://phillipi.github.io/pix2pix](#keras-implementation-of-httpsphillipigithubiopix2pix)
+  - [环境配置](#%e7%8e%af%e5%a2%83%e9%85%8d%e7%bd%ae)
+  - [Discriminator](#discriminator)
+  - [Generator](#generator)
+  - [模型实例构建](#%e6%a8%a1%e5%9e%8b%e5%ae%9e%e4%be%8b%e6%9e%84%e5%bb%ba)
+  - [数据读取](#%e6%95%b0%e6%8d%ae%e8%af%bb%e5%8f%96)
+  - [训练批次 (batch) 定义](#%e8%ae%ad%e7%bb%83%e6%89%b9%e6%ac%a1-batch-%e5%ae%9a%e4%b9%89)
+  - [图片展示函数](#%e5%9b%be%e7%89%87%e5%b1%95%e7%a4%ba%e5%87%bd%e6%95%b0)
+  - [进行训练](#%e8%bf%9b%e8%a1%8c%e8%ae%ad%e7%bb%83)
+
 ---
 
 ### 环境配置
@@ -305,7 +315,7 @@ def UNET_G(isize, nc_in=3, nc_out=3, ngf=64, fixed_input_size=True):
 全局常数定义
 
 > $\lambda$ 和 `loadSize` 两个参数的含义不明
-> 【为什么在 Python 代码里会用希腊字母形式的 $\lambda$ 作为变量名啊？？
+> 【为什么在 Python 代码里会用希腊字母形式的 $\lambda$ 作为变量名啊？而且看后面代码发现没有任何地方用到了
 
 ```python
 nc_in = 3
@@ -356,19 +366,21 @@ from keras.optimizers import RMSprop, SGD, Adam
 
 > 这里整个一段都不是很确定... 就不全都打上引用了
 
-运行 Notebook 后打印这里的 `real_A = netG.input` 和 `fake_B = netG.output`，分别得到了一个 `tf.Tensor`, 即 TensorFlow 张量。有关用法在官方文档中没有发现。
+运行 Notebook 后打印这里的 `real_A = netG.input` 和 `fake_B = netG.output`，分别得到了一个 `tf.Tensor`, 即 TensorFlow 张量。有关用法在官方文档中没有发现
 
-tf 学的不是很深入，但是根据印象来说这个张量应该是动态的而不是静态的，可以理解为图里的一个节点。
+tf 学的不是很深入，但是根据印象来说这个张量应该是动态的而不是静态的，可以理解为图里的一个节点
 
-`K` 是 `keras.backend`, `K.function()` 在[官方文档中的说明](https://keras.io/backend/#function) 有点令人迷茫。
+`K` 是 `keras.backend`, `K.function()` 在[官方文档中的说明](https://keras.io/backend/#function) 有点令人迷茫
 
-具体作用和如何使用可以参考[这个 StackOverflow 回答](https://stackoverflow.com/questions/48142181/whats-the-purpose-of-keras-backend-function)。
+具体作用和如何使用可以参考[这个 StackOverflow 回答](https://stackoverflow.com/questions/48142181/whats-the-purpose-of-keras-backend-function)
 
-在这个例子中，我的理解是 `K.function([real_A], [fake_B])` 创造了一个函数 `netG_generate` ，它接受一个参数，这个参数会被放入 `real_A` (也就是 `netG.input`), 并且利用 `netG` 这个 Model 来做 prediction, 并且将 `fake_B` 也就是 `netG.output` 作为函数返回值
+<div id="netG-gen"> 下面看它在这个例子中的实际应用： </div>
 
-`real_B`, `real_A` 和 `fake_B` 三者各自是一个张量，应该是 `netD` 这个网络的输入 placeholder. `output_D_real` 和 `output_D_fake` 是 call Discriminator 得来的，运行 notebook 发现这两个也是张量。
+我的理解是 `K.function([real_A], [fake_B])` 创造了一个函数 `netG_generate` ，它接受一个参数，这个参数会被放入 `real_A` (也就是 `netG.input`), 并且利用 `netG` 这个 Model 来做 prediction, 并且将 `fake_B` 也就是 `netG.output` 作为函数返回值
 
-根据[官方文档](https://keras.io/getting-started/functional-api-guide/#first-example-a-densely-connected-network), **All models are callable, just like layers**. 所以这两个张量分别可以理解为 `netD` 的两个 Input 层分别接入了 `[real_A, real_B]`, `[real_A, fake_B]` 之后形成的两个新模型的最终输出。
+`real_B`, `real_A` 和 `fake_B` 三者各自是一个张量，应该是 `netD` 这个网络的输入 placeholder. `output_D_real` 和 `output_D_fake` 是 call Discriminator 得来的，运行 notebook 发现这两个也是张量
+
+根据[官方文档](https://keras.io/getting-started/functional-api-guide/#first-example-a-densely-connected-network), **All models are callable, just like layers**. 所以这两个张量分别可以理解为 `netD` 的两个 Input 层分别接入了 `[real_A, real_B]`, `[real_A, fake_B]` 之后形成的两个新模型的最终输出
 
 ```python
 real_A = netG.input
@@ -411,12 +423,12 @@ loss_L1 = K.mean(K.abs(fake_B-real_B))
 
 ---
 
-> 有关 `Adam().get_updates()`, 几乎找不到相关资料，只能看到[源代码](https://github.com/keras-team/keras/blob/2f55055a9f053b35fa721d3eb75dd07ea5a5f1e3/keras/optimizers.py#L471)中返回的是 `self.updates`, 并且根据[这个回答](https://stackoverflow.com/questions/55058546/how-is-get-updates-of-optimizers-sgd-used-in-keras-during-training)，`get_updates()` defines graph operations that update the gradients. 也就是说函数的返回值是一个代表了权重更新的张量。
+> 有关 `Adam().get_updates()`, 几乎找不到相关资料，只能看到[源代码](https://github.com/keras-team/keras/blob/2f55055a9f053b35fa721d3eb75dd07ea5a5f1e3/keras/optimizers.py#L471)中返回的是 `self.updates`, 并且根据[这个回答](https://stackoverflow.com/questions/55058546/how-is-get-updates-of-optimizers-sgd-used-in-keras-during-training)，`get_updates()` defines graph operations that update the gradients. 也就是说函数的返回值是一个代表了权重更新的张量
 > 但问题在于，源代码中的 `get_updates()` 只接受两个参数（`def get_updates(self, loss, params):`），而这里传入了三个参数，完全迷惑
 
-后面 `K.function` 中第三个参数为 `updates`, 官方文档的解释为 "List of update ops", 在代码中输入了 `training_updates`，参考[这个回答](https://stackoverflow.com/questions/44478607/will-keras-backend-function-with-updates-none-not-update-the-state-of-a-statef), 读下来意思是，如果第三个参数保持为 `None`, 那么就只会通过模型来获得一个输出，而不更新模型中的权重。相对应的，如果输入了参数，就会通过这个 "update ops" 来更新模型内的权重。
+后面 `K.function` 中第三个参数为 `updates`, 官方文档的解释为 "List of update ops", 在代码中输入了 `training_updates`，参考[这个回答](https://stackoverflow.com/questions/44478607/will-keras-backend-function-with-updates-none-not-update-the-state-of-a-statef), 读下来意思是，如果第三个参数保持为 `None`, 那么就只会通过模型来获得一个输出，而不更新模型中的权重。相对应的，如果输入了参数，就会通过这个 "update ops" 来更新模型内的权重
 
-搜索发现代码中，正常使用的 keras 模型的 `model.compile`, `model.fit` 等均没有出现，猜测这两行代码的目的就是通过 `get_update` 来 "compile" （设定 updates），并且定义了 `netD_train` 作为一个函数，来完成 fit 的过程。
+搜索发现代码中，正常使用的 keras 模型的 `model.compile`, `model.fit` 等均没有出现，猜测这两行代码的目的就是通过 `get_update` 来 "compile" （设定 updates），并且定义了 `netD_train` 作为一个函数，来完成 fit 的过程
 
 ```python
 loss_D = loss_D_real +loss_D_fake
@@ -457,19 +469,19 @@ def load_data(file_pattern):
 - `fn`: 要读取图像的文件名
 - `direction`: 确定最后输出两张图片的顺序
 
-下载了数据集看了一下，原始图片如下图所示，同一组的两张图片是被横向拼接在一起形成了一张图片，因此 `read_image` 只传入一个路径作为参数。
+下载了数据集看了一下，原始图片如下图所示，同一组的两张图片是被横向拼接在一起形成了一张图片，因此 `read_image` 只传入一个路径作为参数
 
 <div align="center">
-<img src="https://s2.ax1x.com/2019/07/24/eV6Ypd.jpg" width="300">
+<img src="https://s2.ax1x.com/2019/07/24/eV6Ypd.jpg" width="400">
 </div>
 
-另外，通过详细信息可以看到，数据集中图像的分辨率是 512x256, 宽度是 512 像素，高度是 256 像素。这个可能是对为了对应之前全局常数设置的 `imageSize = 256`, 但实际上这个参数不一定要设置成 256. 它只对应最终输出的 numpy 数组的长和宽，可以大于或小于 256.
+另外，通过详细信息可以看到，数据集中图像的分辨率是 512x256, 宽度是 512 像素，高度是 256 像素。这个可能是对为了对应之前全局常数设置的 `imageSize = 256`, 但实际上这个参数不一定要设置成 256. 它只对应最终输出的 numpy 数组的长和宽，可以大于或小于 256
 
 `im.resize` 的第一个参数是一个 tuple: `(width, height)`, `loadSize` 在前面被设置为 `286`, 第二个参数是一个 PIL 的 `filters`, 就是在缩放的时候每一个被压缩的像素如何计算
 
-尝试过了使用不同的 Filter, 发现除了 BOX 似乎会在压缩完图像之后会在图片上添加网格线以外，其他的 Filter 效果都差不多，因此感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters)。
+尝试过了使用不同的 Filter, 发现除了 BOX 似乎会在压缩完图像之后会在图片上添加网格线以外，其他的 Filter 效果都差不多，因此感觉不是特别重要，如果需要可以看[文档](https://pillow.readthedocs.io/en/stable/handbook/concepts.html#filters)
 
-通过对 `loadSize` 设置成不同的值，发现这个参数是用于控制不同的“缩放比例”，最终保留的是裁掉边缘的图片。`loadSize` 越大，最终裁掉的边缘越多，剩下的部分越是中心的小块。猜测是由于数据集中有些图片边缘有不规则的黑色部分，需要把黑色部分删除。
+通过对 `loadSize` 设置成不同的值，发现这个参数是用于控制不同的“缩放比例”，最终保留的是裁掉边缘的图片。`loadSize` 越大，最终裁掉的边缘越多，剩下的部分越是中心的小块。猜测是由于数据集中有些图片边缘有不规则的黑色部分，需要把黑色部分删除
 
 具体裁边操作的关键是这四步：
 
@@ -480,23 +492,23 @@ imgA = arr[h1:h2, loadSize+w1:loadSize+w2, :]
 imgB = arr[h1:h2, w1:w2, :]
 ```
 
-`arr` 的形状是 `2*loadSize`x`loadSize`, 通过对 `arr` 的切分，就可以裁去图像的边缘。
+`arr` 的形状是 `2*loadSize`x`loadSize`, 通过对 `arr` 的切分，就可以裁去图像的边缘
 
 当 `loadSize` 为 256 时，就是原图。当 `loadSize` 为 286 时，效果如下图（调用后文 `showX` 函数）：
 
 <div align="center">
-<img src="https://s2.ax1x.com/2019/07/29/e86n3R.png" width="300">
+<img src="https://s2.ax1x.com/2019/07/29/e86n3R.png" width="250">
 </div>
 
 当 `loadSize` 为 500 时，效果为：
 
 <div align="center">
-<img src="https://s2.ax1x.com/2019/07/29/e86Kjx.png" width="300">
+<img src="https://s2.ax1x.com/2019/07/29/e86Kjx.png" width="250">
 </div>
 
-`imgA` 和 `imgB` 被分别赋值为代表图像左边部分和右边部分的 numpy 数组。
+`imgA` 和 `imgB` 被分别赋值为代表图像左边部分和右边部分的 numpy 数组
 
-`if randint(0,1):` 的部分，目的是随机将图片进行左右翻转，进而使得模型获得更好的泛化性能。
+`if randint(0,1):` 的部分，目的是随机将图片进行左右翻转，进而使得模型获得更好的泛化性能
 
 另外，对 `im` 对象的操作可以参考 `PIL.Image.Image` 类的[文档](https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image)
 
@@ -524,7 +536,7 @@ def read_image(fn, direction=0):
 
 ---
 
-调用上面的函数读取数据集，注意这里 `trainAB` 和 `valAB` 都是文件夹下所有的图片地址字符串。
+调用上面的函数读取数据集，注意这里 `trainAB` 和 `valAB` 都是文件夹下所有的图片地址字符串
 
 ```python
 data = "edges2shoes"
@@ -537,7 +549,9 @@ assert len(trainAB) and len(valAB)
 
 ---
 
-`minibatch` 中有 `yield` 关键字，是一个生成器。
+### 训练批次 (batch) 定义
+
+`minibatch` 中有 `yield` 关键字，是一个生成器
 
 参数说明：
 
@@ -545,7 +559,9 @@ assert len(trainAB) and len(valAB)
 - `batchsize`: 一个 batch 中图片的数量，这个问题其实也可以参考下官方文档对 batch 和 epoch 概念的[说明](https://keras.io/getting-started/faq/#what-does-sample-batch-epoch-mean)
 - `direction`: 与前面 `read_image` 函数的 `direction` 参数对应，确定 AB 两张图片的前后顺序
 
-最后 `tmpsize = yield epoch, dataA, dataB` 怀疑是写错了，`tmpsize` 在执行之后会被重置为 `None`, 因为 `yield` 语句没有返回值。
+~~最后 `tmpsize = yield epoch, dataA, dataB` 怀疑是写错了，`tmpsize` 在执行之后会被重置为 `None`, 因为 `yield` 语句没有返回值。~~
+
+最后 `tmpsize = yield epoch, dataA, dataB` 这句，是配合后面 `batch.send(x)` 方法起效的，留待后面解释。如果完全正常通过 `next(batch)` 来调用，这一步会正常 `yield` 后面三个值，并且将 `tmpsize` 重置为 `None`, 即下一轮迭代中 `while True` 的下一句将 `size` 赋值为 `batchsize`
 
 变量 `i` 记录着在当前的 epoch 中，读取了多少张图片。图片将被保存在 `dataA` 和 `dataB` 变量中作为 numpy 数组返回。
 
@@ -577,9 +593,23 @@ def minibatch(dataAB, batchsize, direction=0):
 
 ---
 
-`showX` 是一个通过 `np.ndarray` 反向生成图片并且展示的函数，需要安装 Graphviz。
+### 图片展示函数
 
-中间对这个函数的处理基本就是对前面 `read_image` 函数进行了逆向操作。如果有需要再返回回来详细看
+`showX` 是一个通过 `np.ndarray` 反向生成图片并且展示的函数，需要安装 Graphviz.
+
+中间对这个函数的处理基本就是对前面 `read_image` 函数进行了逆向操作。下面进行详细解释。
+
+首先，参数中的 `X` 是一个 `np.ndarray`, 基于其形成图片。参数 `rows` 应该代表着输入数组中有多少张纵向拼接形成的图片。
+
+这里第一句 `assert X.shape[0] % rows == 0` 意思也就是，图片矩阵的行像素数必须是图片张数的整数倍。
+
+`int_X = (...)` 这句中，前面那通运算是对 `read_image` 函数的逆向，后面 `.clip` 根据[文档](https://docs.scipy.org/doc/numpy/reference/generated/numpy.clip.html), 意思是将矩阵内的所有数值限制在一个范围内，"For example, if an interval of [0, 1] is specified, values smaller than 0 become 0, and values larger than 1 become 1." 很好理解。会产生这种情况的原因可能是，`X` 矩阵有可能是神经网络生成的，此时生成的数值不能保证（逆向还原后）落在 0-255 之内，因此需要这一步操作。
+
+`if channel_first` 的 `moveaxis` 操作暂时略去，并不需要用到。
+
+注意这里最后一步 `int_X = ...swapaxes(1,2)` ，似乎是将原始数据的行和列两个轴交换，因此实际上运行此函数传入多张图片，最后展示出来各张图片是横向连在一起显示的。
+
+<img src="https://s2.ax1x.com/2019/07/31/eNoKij.png" width="600">
 
 ```python
 from IPython.display import display
@@ -608,13 +638,18 @@ del train_batch, trainA, trainB
 
 ---
 
+如果忘了 `netG_generate` 函数，可以点[这里](#netG-gen)复习一下
 
+`netG_gen` 这个函数在后面的调用中，传入的都是 `minibatch` 生成出来的第二个值，即 `dataA`. 在 notebook 调用中看到发现这就是
 
 ```python
 def netG_gen(A):
     return np.concatenate([netG_generate([A[i:i+1]])[0] for i in range(A.shape[0])], axis=0)
 ```
 
+---
+
+### 进行训练
 
 ```python
 import time
