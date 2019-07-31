@@ -609,7 +609,9 @@ def minibatch(dataAB, batchsize, direction=0):
 
 注意这里最后一步 `int_X = ...swapaxes(1,2)` ，似乎是将原始数据的行和列两个轴交换，因此实际上运行此函数传入多张图片，最后展示出来各张图片是横向连在一起显示的。
 
+<div align="center">
 <img src="https://s2.ax1x.com/2019/07/31/eNoKij.png" width="600">
+</div>
 
 ```python
 from IPython.display import display
