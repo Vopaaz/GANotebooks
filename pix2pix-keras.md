@@ -10,6 +10,7 @@
   - [训练批次 (batch) 定义](#%e8%ae%ad%e7%bb%83%e6%89%b9%e6%ac%a1-batch-%e5%ae%9a%e4%b9%89)
   - [图片展示函数](#%e5%9b%be%e7%89%87%e5%b1%95%e7%a4%ba%e5%87%bd%e6%95%b0)
   - [进行训练](#%e8%bf%9b%e8%a1%8c%e8%ae%ad%e7%bb%83)
+  - [最终结果展示](#%e6%9c%80%e7%bb%88%e7%bb%93%e6%9e%9c%e5%b1%95%e7%a4%ba)
 
 ---
 
@@ -653,6 +654,29 @@ def netG_gen(A):
 
 ### 进行训练
 
+各个变量作用：
+
+- `niter` 指的是总的训练轮次，代码中只在 `epoch < niter` 中出现作为循环条件
+- `gen_iterations` 是当前完成的训练轮次，`while` 循环每循环一次就递增 1
+- `err**` 和 `err**_sum` 分别是当前批次的损失和总损失，另外要注意，似乎这里进行的结果只是为了显示，实际在训练过程中需要最小化的损失在训练函数的定义时已经通过 `training_updates` 完成了设定
+   - `errL1` 和 `errG` 在 `netG_train` 函数中生成
+   - `errD` 在 `netD_train` 函数中生成
+- `display_iters` 是训练轮次中要进行展示的轮次，当 `gen_iterations` 是它的倍数时，就会打印当前进度、训练生成状态
+
+这里用到了一个 `generator.send(N)` 的用法，具体解释如下：
+
+如果一个 genereator 的定义中 `yield` 语句的定义是这样的：
+
+```python
+    val = yield x
+```
+
+则调用 `generator.send(N)` 时，`N` 会赋值给 `yield` 语句的返回值，即 `val`, 并且继续向下运行，直到遇见下一个 `yield` 语句，返回并且暂停。
+当正常使用 `next(generator)` 时，`val` 的值将是 `Null`
+
+因此，这里使用 `minibatch.send(6)`, 作用是将 `minibatch` 中的 `tmpsize` 设置成 `6`, 从而返回 6 张图片，用于暂时的展示。
+
+
 ```python
 import time
 from IPython.display import clear_output
@@ -687,9 +711,11 @@ while epoch < niter:
         _, valA, valB = next(val_batch)
         fakeB = netG_gen(valA)
         showX(np.concatenate([valA, valB, fakeB], axis=0), 3)
-
 ```
 
+---
+
+### 最终结果展示
 
 ```python
 _, valA, valB = train_batch.send(6)
